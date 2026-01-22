@@ -96,40 +96,106 @@ public class Douyin {
         }
 
         @Override
-        protected void onPostExecute(String s) {
-            try{
-                JSONObject object= JSON.parseObject(s);
-                String src_no=object.getJSONArray("urls").getString(0);
-                String murl=object.getJSONArray("music_urls").getString(0);
-                String user=object.getString("nickname");
-                String id=object.getString("awemeId");
-                String long_video;
-                JSONArray arr_l=object.getJSONArray("long_video");
-              for (int i=0;i<arr_l.size();i++){
-                  JSONObject lv=arr_l.getJSONObject(i);
-                  for(int j=0;j<3;j++){
-                      if(lv.getString("gear_name").equals(quantities[j])){
-                          setLong_video(lv.getJSONObject("play_addr").getJSONArray("url_list").getString(0),quantities_name[j]);
-                          break;
-                      }
-                  }
-                  if(has_long){
-                      break;
-                  }
-
-              }
-
-                user_name=user;
-                video_id=id;
-                real_url=src_no;
-                music_url=murl;
-            }catch (Exception e){
-                callBack.HttpSuccessDo(Douyin.this,true);
-                return;
-            }
-            callBack.HttpSuccessDo(Douyin.this,false);
+        @Override
+protected void onPostExecute(String s) {
+    try{
+        JSONObject object= JSON.parseObject(s);
+        // 尝试解析不同API返回格式
+        String src_no="";
+        String murl="";
+        String user="";
+        String id="";
+        
+        // 格式1: 直接返回数据
+        if(object.containsKey("urls")){
+            src_no=object.getJSONArray("urls").getString(0);
         }
+        if(object.containsKey("music_urls")){
+            murl=object.getJSONArray("music_urls").getString(0);
+        }
+        if(object.containsKey("nickname")){
+            user=object.getString("nickname");
+        }
+        if(object.containsKey("awemeId")){
+            id=object.getString("awemeId");
+        }
+        
+        // 格式2: 数据在data字段中
+        if(object.containsKey("data")){
+            JSONObject data=object.getJSONObject("data");
+            if(data.containsKey("urls")){
+                src_no=data.getJSONArray("urls").getString(0);
+            }
+            if(data.containsKey("music_urls")){
+                murl=data.getJSONArray("music_urls").getString(0);
+            }
+            if(data.containsKey("nickname")){
+                user=data.getString("nickname");
+            }
+            if(data.containsKey("awemeId")){
+                id=data.getString("awemeId");
+            }
+        }
+        
+        // 格式3: 简化格式
+        if(object.containsKey("video_url")){
+            src_no=object.getString("video_url");
+        }
+        if(object.containsKey("music_url")){
+            murl=object.getString("music_url");
+        }
+        if(object.containsKey("author")){
+            user=object.getString("author");
+        }
+        if(object.containsKey("video_id")){
+            id=object.getString("video_id");
+        }
+        
+        // 格式4: 其他常见格式
+        if(object.containsKey("play_addr")){
+            JSONObject playAddr=object.getJSONObject("play_addr");
+            if(playAddr.containsKey("url_list")){
+                src_no=playAddr.getJSONArray("url_list").getString(0);
+            }
+        }
+        
+        // 确保必要字段存在
+        if(src_no.isEmpty() || user.isEmpty()){
+            throw new Exception("必要字段缺失");
+        }
+        
+        // 尝试解析长视频（如果有）
+        if(object.containsKey("long_video")){
+            JSONArray arr_l=object.getJSONArray("long_video");
+            for (int i=0;i<arr_l.size();i++){
+                JSONObject lv=arr_l.getJSONObject(i);
+                for(int j=0;j<3;j++){
+                    if(lv.containsKey("gear_name") && lv.getString("gear_name").equals(quantities[j])){
+                        if(lv.containsKey("play_addr")){
+                            JSONObject playAddr=lv.getJSONObject("play_addr");
+                            if(playAddr.containsKey("url_list")){
+                                setLong_video(playAddr.getJSONArray("url_list").getString(0),quantities_name[j]);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if(has_long){
+                    break;
+                }
+            }
+        }
+
+        user_name=user;
+        video_id=id;
+        real_url=src_no;
+        music_url=murl;
+    }catch (Exception e){
+        callBack.HttpSuccessDo(Douyin.this,true);
+        return;
     }
+    callBack.HttpSuccessDo(Douyin.this,false);
+}
 
 
 
@@ -137,3 +203,4 @@ public class Douyin {
         void HttpSuccessDo(Douyin douyin, boolean error);//获取抖音页面内容后做的事
     }
 }
+
